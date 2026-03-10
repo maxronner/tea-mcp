@@ -1,0 +1,20 @@
+# Tests
+tests/
+vitest.config.ts
+coverage/
+
+# Config
+.github/
+.husky/
+.eslintrc.json
+.prettierrc
+.prettierignore
+
+# Build
+tsconfig.json
+*.tsbuildinfo
+
+# Misc
+.gitignore
+*.log
+.DS_Store

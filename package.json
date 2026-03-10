@@ -1,0 +1,72 @@
+{
+  "name": "@maxronner/tea-mcp",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "MCP server for tea CLI (Gitea)",
+  "bin": {
+    "tea-mcp": "./build/index.js"
+  },
+  "files": [
+    "build/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "test:run": "bun test",
+    "test:coverage": "bun test --coverage",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "format:check": "prettier --check src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "prepare": "husky install",
+    "prepublishOnly": "bun run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maxronner/tea-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/maxronner/tea-mcp/issues"
+  },
+  "homepage": "https://github.com/maxronner/tea-mcp#readme",
+  "keywords": [
+    "mcp",
+    "gitea",
+    "tea",
+    "cli",
+    "model-context-protocol",
+    "ai",
+    "llm"
+  ],
+  "author": "Max Ronner",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.0.0"
+  }
+}
