@@ -1,178 +1,133 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import { resetMocks, mockExecSuccess, mockExecNonJson } from "../setup";
-import { server } from "../../src/index";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { getExecCalls, queueExecSuccess, resetExecMocks } from "../setup";
+import { getRegisteredTool, getRegisteredToolNames } from "../../src/server";
 
-describe("Pull Request Tools", () => {
+describe("pull request tools", () => {
   beforeEach(() => {
-    resetMocks();
+    resetExecMocks();
   });
 
-  describe("tea_prs_list", () => {
-    it("should have the tool registered", () => {
-      expect(server).toBeDefined();
-    });
-
-    it("should list pull requests with default parameters", async () => {
-      const mockPRs = [
-        { number: 1, title: "PR 1", state: "open" },
-        { number: 2, title: "PR 2", state: "open" },
-      ];
-      mockExecSuccess(JSON.stringify(mockPRs));
-
-      expect(server).toBeDefined();
-    });
+  it("registers the documented pull request tool names", () => {
+    expect(getRegisteredToolNames()).toEqual(
+      expect.arrayContaining([
+        "tea_prs_list",
+        "tea_pr_view",
+        "tea_pr_checkout",
+        "tea_pr_create",
+        "tea_pr_approve",
+        "tea_pr_reject",
+        "tea_pr_merge",
+      ])
+    );
   });
 
-  describe("tea_pr_view", () => {
-    it("should view pull request details", async () => {
-      const mockPR = {
-        number: 42,
-        title: "Feature PR",
-        body: "Description",
-        state: "open",
-        comments: [],
-      };
-      mockExecSuccess(JSON.stringify(mockPR));
+  it("creates a pull request without collapsing spaced arguments", async () => {
+    queueExecSuccess("feature branch\n");
+    queueExecSuccess("origin/master\n");
+    queueExecSuccess(JSON.stringify({ number: 123, title: "My PR" }));
 
-      expect(server).toBeDefined();
+    const result = await getRegisteredTool("tea_pr_create").handler({
+      title: "My PR title",
+      description: "A body with spaces && symbols",
+      preview: false,
     });
+
+    expect(result.content[0]?.text).toContain('"number": 123');
+    expect(getExecCalls()).toEqual([
+      { file: "git", args: ["branch", "--show-current"] },
+      { file: "git", args: ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"] },
+      {
+        file: "tea",
+        args: [
+          "pulls",
+          "create",
+          "--output",
+          "json",
+          "--title",
+          "My PR title",
+          "--description",
+          "A body with spaces && symbols",
+          "--base",
+          "master",
+        ],
+      },
+    ]);
   });
 
-  describe("tea_pr_checkout", () => {
-    it("should checkout a pull request", async () => {
-      mockExecSuccess("Switched to branch 'pr-123'");
+  it("uses the resolved default branch in preview mode", async () => {
+    queueExecSuccess("feature-branch\n");
+    queueExecSuccess("origin/trunk\n");
+    queueExecSuccess("abc123 Add feature\n");
+    queueExecSuccess("1 file changed\n");
+    queueExecSuccess("diff --git a/file.txt b/file.txt\n+change\n");
 
-      expect(server).toBeDefined();
+    const result = await getRegisteredTool("tea_pr_create").handler({
+      title: "Preview PR",
+      preview: true,
     });
+
+    expect(result.content[0]?.text).toContain("**Source:** feature-branch -> **Target:** trunk");
+    expect(getExecCalls()).toEqual([
+      { file: "git", args: ["branch", "--show-current"] },
+      { file: "git", args: ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"] },
+      { file: "git", args: ["log", "trunk..feature-branch", "--oneline"] },
+      { file: "git", args: ["diff", "trunk...feature-branch", "--stat"] },
+      { file: "git", args: ["diff", "trunk...feature-branch"] },
+    ]);
   });
 
-  describe("tea_pr_create", () => {
-    it("should create a pull request", async () => {
-      const mockCreatedPR = {
-        number: 123,
-        title: "My New Feature",
-        url: "https://gitea.example.com/user/repo/pulls/123",
-        state: "open",
-      };
-      mockExecSuccess(JSON.stringify(mockCreatedPR));
+  it("passes approval and rejection messages as single arguments", async () => {
+    queueExecSuccess(JSON.stringify({ ok: true }));
+    queueExecSuccess(JSON.stringify({ ok: true }));
 
-      expect(server).toBeDefined();
+    await getRegisteredTool("tea_pr_approve").handler({
+      index: 42,
+      comment: "LGTM with one note",
+    });
+    await getRegisteredTool("tea_pr_reject").handler({
+      index: 42,
+      reason: "Please fix title casing && docs",
     });
 
-    it("should support preview mode without creating PR", async () => {
-      // Preview mode uses git commands, so we mock those
-      mockExecNonJson("feature-branch"); // git branch --show-current
-      mockExecNonJson("abc123 Add feature A\nabc456 Add feature B"); // git log
-      mockExecNonJson(" 2 files changed, 100 insertions(+), 20 deletions(-)"); // git diff --stat
-      mockExecNonJson("diff --git a/file.txt b/file.txt\n+change"); // git diff
-
-      expect(server).toBeDefined();
-    });
-
-    it("should support optional parameters", async () => {
-      const mockCreatedPR = {
-        number: 124,
-        title: "PR with metadata",
-        assignees: ["user1", "user2"],
-        labels: ["bug", "urgent"],
-        milestone: "v1.0",
-      };
-      mockExecSuccess(JSON.stringify(mockCreatedPR));
-
-      expect(server).toBeDefined();
-    });
+    expect(getExecCalls()).toEqual([
+      {
+        file: "tea",
+        args: ["pulls", "approve", "42", "--output", "json", "LGTM with one note"],
+      },
+      {
+        file: "tea",
+        args: ["pulls", "reject", "42", "Please fix title casing && docs", "--output", "json"],
+      },
+    ]);
   });
 
-  describe("tea_pr_approve", () => {
-    it("should approve a pull request", async () => {
-      const mockApprovedPR = {
-        number: 42,
-        state: "open",
-        approved_by: ["current-user"],
-      };
-      mockExecSuccess(JSON.stringify(mockApprovedPR));
+  it("merges with the requested strategy and message", async () => {
+    queueExecSuccess(JSON.stringify({ state: "merged" }));
 
-      expect(server).toBeDefined();
+    await getRegisteredTool("tea_pr_merge").handler({
+      index: 42,
+      style: "squash",
+      title: "Merge title",
+      message: "Merge body",
     });
 
-    it("should approve with comment", async () => {
-      const mockApprovedPR = {
-        number: 42,
-        state: "open",
-        approved_by: ["current-user"],
-        comment: "LGTM!",
-      };
-      mockExecSuccess(JSON.stringify(mockApprovedPR));
-
-      expect(server).toBeDefined();
-    });
-  });
-
-  describe("tea_pr_reject", () => {
-    it("should request changes on a pull request", async () => {
-      const mockRejectedPR = {
-        number: 42,
-        state: "open",
-        review: {
-          state: "CHANGES_REQUESTED",
-          body: "Please fix the naming",
-        },
-      };
-      mockExecSuccess(JSON.stringify(mockRejectedPR));
-
-      expect(server).toBeDefined();
-    });
-  });
-
-  describe("tea_pr_merge", () => {
-    it("should merge a pull request with default strategy", async () => {
-      const mockMergedPR = {
-        number: 42,
-        state: "merged",
-        merge_commit_sha: "abc123",
-      };
-      mockExecSuccess(JSON.stringify(mockMergedPR));
-
-      expect(server).toBeDefined();
-    });
-
-    it("should merge with squash strategy", async () => {
-      const mockMergedPR = {
-        number: 42,
-        state: "merged",
-        merge_commit_sha: "abc123",
-        merge_style: "squash",
-      };
-      mockExecSuccess(JSON.stringify(mockMergedPR));
-
-      expect(server).toBeDefined();
-    });
-
-    it("should merge with custom commit message", async () => {
-      const mockMergedPR = {
-        number: 42,
-        state: "merged",
-        merge_commit_sha: "abc123",
-        merge_commit_message: "Custom merge message",
-      };
-      mockExecSuccess(JSON.stringify(mockMergedPR));
-
-      expect(server).toBeDefined();
-    });
-
-    it("should support all merge strategies", async () => {
-      const strategies = ["merge", "rebase", "squash", "rebase-merge"];
-
-      for (const style of strategies) {
-        const mockMergedPR = {
-          number: 42,
-          state: "merged",
-          merge_style: style,
-        };
-        mockExecSuccess(JSON.stringify(mockMergedPR));
-      }
-
-      expect(server).toBeDefined();
-    });
+    expect(getExecCalls()).toEqual([
+      {
+        file: "tea",
+        args: [
+          "pulls",
+          "merge",
+          "42",
+          "--output",
+          "json",
+          "--style",
+          "squash",
+          "--title",
+          "Merge title",
+          "--message",
+          "Merge body",
+        ],
+      },
+    ]);
   });
 });

@@ -1,57 +1,65 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import { resetMocks, mockExecSuccess } from "../setup";
-import { server } from "../../src/index";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { getExecCalls, queueExecSuccess, resetExecMocks } from "../setup";
+import { getRegisteredTool, getRegisteredToolNames } from "../../src/server";
 
-describe("Issue Tools", () => {
+describe("issue tools", () => {
   beforeEach(() => {
-    resetMocks();
+    resetExecMocks();
   });
 
-  describe("tea_issues_list", () => {
-    it("should have the tool registered", () => {
-      expect(server).toBeDefined();
-    });
-
-    it("should list issues with default parameters", async () => {
-      const mockIssues = [
-        { number: 1, title: "Issue 1", state: "open" },
-        { number: 2, title: "Issue 2", state: "open" },
-      ];
-      mockExecSuccess(JSON.stringify(mockIssues));
-
-      // Tool is registered if we got here
-      expect(server).toBeDefined();
-    });
+  it("registers the documented issue tool names", () => {
+    expect(getRegisteredToolNames()).toEqual(
+      expect.arrayContaining([
+        "tea_issues_list",
+        "tea_issue_view",
+        "tea_issue_close",
+        "tea_issue_reopen",
+      ])
+    );
   });
 
-  describe("tea_issue_view", () => {
-    it("should view issue details", async () => {
-      const mockIssue = {
-        number: 42,
-        title: "Test Issue",
-        body: "Description",
-        state: "open",
-        comments: [],
-      };
-      mockExecSuccess(JSON.stringify(mockIssue));
+  it("lists issues with the documented defaults", async () => {
+    queueExecSuccess(JSON.stringify([{ number: 1, title: "Issue 1" }]));
 
-      expect(server).toBeDefined();
+    const result = await getRegisteredTool("tea_issues_list").handler({
+      state: "open",
+      limit: 30,
     });
+
+    expect(result.content[0]?.text).toContain('"title": "Issue 1"');
+    expect(getExecCalls()).toEqual([
+      {
+        file: "tea",
+        args: ["issues", "list", "--output", "json", "--state", "open", "--limit", "30"],
+      },
+    ]);
   });
 
-  describe("tea_issue_close", () => {
-    it("should close an issue", async () => {
-      mockExecSuccess("{}");
+  it("views issue details with comments", async () => {
+    queueExecSuccess(JSON.stringify({ number: 42, comments: [] }));
 
-      expect(server).toBeDefined();
-    });
+    await getRegisteredTool("tea_issue_view").handler({ index: 42 });
+
+    expect(getExecCalls()).toEqual([
+      {
+        file: "tea",
+        args: ["issues", "42", "--output", "json", "--comments"],
+      },
+    ]);
   });
 
-  describe("tea_issue_reopen", () => {
-    it("should reopen a closed issue", async () => {
-      mockExecSuccess("{}");
+  it("closes and reopens issues", async () => {
+    queueExecSuccess("");
+    queueExecSuccess("");
 
-      expect(server).toBeDefined();
-    });
+    const closeResult = await getRegisteredTool("tea_issue_close").handler({ index: 7 });
+    const reopenResult = await getRegisteredTool("tea_issue_reopen").handler({ index: 7 });
+
+    expect(closeResult.content[0]?.text).toBe("Operation completed successfully");
+    expect(reopenResult.content[0]?.text).toBe("Operation completed successfully");
+    expect(getExecCalls()).toEqual([
+      { file: "tea", args: ["issues", "close", "7"] },
+      { file: "tea", args: ["issues", "reopen", "7"] },
+    ]);
   });
 });

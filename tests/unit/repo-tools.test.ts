@@ -1,49 +1,38 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import { resetMocks, mockExecSuccess } from "../setup";
-import { server } from "../../src/index";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { getExecCalls, queueExecSuccess, resetExecMocks } from "../setup";
+import { getRegisteredTool, getRegisteredToolNames } from "../../src/server";
 
-describe("Repository Tools", () => {
+describe("repository tools", () => {
   beforeEach(() => {
-    resetMocks();
+    resetExecMocks();
   });
 
-  describe("tea_repos_list", () => {
-    it("should have the tool registered", () => {
-      expect(server).toBeDefined();
-    });
-
-    it("should list repositories with default parameters", async () => {
-      const mockRepos = [
-        { full_name: "user/repo1", description: "Test repo 1" },
-        { full_name: "user/repo2", description: "Test repo 2" },
-      ];
-      mockExecSuccess(JSON.stringify(mockRepos));
-
-      expect(server).toBeDefined();
-    });
+  it("registers the documented repository tool names", () => {
+    expect(getRegisteredToolNames()).toEqual(
+      expect.arrayContaining(["tea_repos_list", "tea_repo_view"])
+    );
   });
 
-  describe("tea_repo_view", () => {
-    it("should view current repository details", async () => {
-      const mockRepo = {
-        full_name: "current/repo",
-        description: "Current repository",
-        stars: 42,
-      };
-      mockExecSuccess(JSON.stringify(mockRepo));
+  it("lists repositories", async () => {
+    queueExecSuccess(JSON.stringify([{ full_name: "user/repo1" }]));
 
-      expect(server).toBeDefined();
-    });
+    await getRegisteredTool("tea_repos_list").handler({ limit: 30 });
 
-    it("should view specified repository details", async () => {
-      const mockRepo = {
-        full_name: "other/repo",
-        description: "Another repository",
-        stars: 100,
-      };
-      mockExecSuccess(JSON.stringify(mockRepo));
+    expect(getExecCalls()).toEqual([
+      { file: "tea", args: ["repos", "list", "--output", "json", "--limit", "30"] },
+    ]);
+  });
 
-      expect(server).toBeDefined();
-    });
+  it("views the current or specified repository", async () => {
+    queueExecSuccess(JSON.stringify({ full_name: "current/repo" }));
+    queueExecSuccess(JSON.stringify({ full_name: "other/repo" }));
+
+    await getRegisteredTool("tea_repo_view").handler({});
+    await getRegisteredTool("tea_repo_view").handler({ repo: "other/repo" });
+
+    expect(getExecCalls()).toEqual([
+      { file: "tea", args: ["repos", "--output", "json"] },
+      { file: "tea", args: ["repos", "other/repo", "--output", "json"] },
+    ]);
   });
 });

@@ -1,69 +1,113 @@
-import { describe, it, expect, beforeEach } from "bun:test";
-import {
-  resetMocks,
-  mockExecSuccess,
-  mockExecError,
-  mockExecEmpty,
-  mockExecNonJson,
-} from "../setup";
-import { execTea } from "../../src/index";
+import { beforeEach, describe, expect, it } from "bun:test";
+import { getExecCalls, queueExecError, queueExecSuccess, resetExecMocks } from "../setup";
+import { execGit, execTea, resolveDefaultBranch } from "../../src/server";
 
-describe("execTea", () => {
+describe("process helpers", () => {
   beforeEach(() => {
-    resetMocks();
+    resetExecMocks();
   });
 
-  it("should parse JSON output on success", async () => {
+  it("parses JSON output on success", async () => {
     const mockData = [{ id: 1, title: "Test Issue" }];
-    mockExecSuccess(JSON.stringify(mockData));
+    queueExecSuccess(JSON.stringify(mockData));
 
     const result = await execTea(["issues", "list"]);
 
     expect(result).toEqual(mockData);
+    expect(getExecCalls()).toEqual([{ file: "tea", args: ["issues", "list"] }]);
   });
 
-  it("should handle stderr notes on success", async () => {
-    const mockData = { success: true };
-    mockExecSuccess(JSON.stringify(mockData), "Note: Some informational message");
+  it("handles stderr notes on success", async () => {
+    queueExecSuccess(JSON.stringify({ success: true }), "note");
 
     const result = await execTea(["issues", "list"]);
 
-    expect(result).toEqual(mockData);
+    expect(result).toEqual({ success: true });
   });
 
-  it("should handle empty output", async () => {
-    mockExecEmpty();
+  it("handles empty output", async () => {
+    queueExecSuccess("");
 
     const result = await execTea(["issues", "close", "1"]);
 
     expect(result).toEqual({ success: true });
   });
 
-  it("should handle non-JSON output", async () => {
-    const nonJsonOutput = "Successfully checked out PR #123";
-    mockExecNonJson(nonJsonOutput);
+  it("handles non-JSON output", async () => {
+    queueExecSuccess("Successfully checked out PR #123");
 
     const result = await execTea(["pulls", "checkout", "123"]);
 
-    expect(result).toEqual({ success: true, message: nonJsonOutput, stderr: "" });
+    expect(result).toEqual({
+      success: true,
+      message: "Successfully checked out PR #123",
+      stderr: "",
+    });
   });
 
-  it("should reject on non-zero exit code", async () => {
-    mockExecError(1, "Error: Repository not found");
+  it("rejects on command failure", async () => {
+    queueExecError(1, "Repository not found");
 
-    expect(async () => {
-      await execTea(["issues", "list"]);
-    }).toThrow("Repository not found");
+    await expect(execTea(["issues", "list"])).rejects.toThrow("Repository not found");
   });
 
-  it("should build correct command", async () => {
-    const mockData = [{ id: 1 }];
-    mockExecSuccess(JSON.stringify(mockData));
+  it("preserves argument boundaries for spaced values", async () => {
+    queueExecSuccess("{}");
 
-    await execTea(["issues", "list", "--state", "open"]);
+    await execTea([
+      "pulls",
+      "create",
+      "--title",
+      "Feature with spaces",
+      "--description",
+      "body with $shell && chars",
+    ]);
 
-    // Verify the mock was called
-    // In Bun, we can't easily verify the exact call without more setup
-    // This test passes if no errors are thrown
+    expect(getExecCalls()).toEqual([
+      {
+        file: "tea",
+        args: [
+          "pulls",
+          "create",
+          "--title",
+          "Feature with spaces",
+          "--description",
+          "body with $shell && chars",
+        ],
+      },
+    ]);
+  });
+
+  it("returns trimmed git output", async () => {
+    queueExecSuccess("feature-branch\n");
+
+    const result = await execGit(["branch", "--show-current"]);
+
+    expect(result).toBe("feature-branch");
+    expect(getExecCalls()).toEqual([{ file: "git", args: ["branch", "--show-current"] }]);
+  });
+
+  it("resolves the default branch from origin HEAD", async () => {
+    queueExecSuccess("origin/master\n");
+
+    const result = await resolveDefaultBranch();
+
+    expect(result).toBe("master");
+    expect(getExecCalls()).toEqual([
+      { file: "git", args: ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"] },
+    ]);
+  });
+
+  it("falls back to remote show when symbolic-ref fails", async () => {
+    queueExecError(1, "no origin head");
+    queueExecSuccess("  HEAD branch: trunk\n");
+
+    const result = await resolveDefaultBranch();
+
+    expect(result).toBe("trunk");
+    expect(getExecCalls()).toEqual([
+      { file: "git", args: ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"] },
+      { file: "git", args: ["remote", "show", "origin"] },
+    ]);
   });
 });

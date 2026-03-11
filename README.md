@@ -129,7 +129,7 @@ Create a new pull request with optional preview mode.
 - `title` (required): Pull request title
 - `description` (optional): PR body/description
 - `head` (optional): Source branch name (defaults to current branch)
-- `base` (optional): Target branch name (defaults to repo default branch)
+- `base` (optional): Target branch name (defaults to the repository default branch)
 - `preview` (optional): Show diff without creating PR (default: false)
 - `assignees` (optional): Comma-separated usernames to assign
 - `labels` (optional): Comma-separated labels to assign
@@ -228,19 +228,19 @@ bun install
 ### Commands
 
 ```bash
-bun run build        # Build TypeScript
-bun test             # Run tests in watch mode
-bun run test:run     # Run tests once
+bun run build         # Build TypeScript
+bun test              # Run tests
+bun run test:run      # Run tests once
 bun run test:coverage # Run tests with coverage
-bun run lint         # Run ESLint
-bun run lint:fix     # Fix lint issues
-bun run format       # Format with Prettier
-bun run typecheck    # Type check without emit
+bun run lint          # Run ESLint
+bun run lint:fix      # Fix lint issues
+bun run format        # Format with Prettier
+bun run typecheck     # Type check without emit
 ```
 
 ### Testing
 
-This project uses Vitest with mocked child_process to test without requiring the tea CLI.
+This project uses `bun:test` with mocked child process execution to test without requiring the tea CLI.
 
 Coverage threshold: 80%
 
