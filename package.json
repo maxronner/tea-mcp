@@ -14,15 +14,14 @@
   "scripts": {
     "build": "tsc",
     "test": "bun test",
-    "test:run": "bun test",
     "test:coverage": "bun test --coverage",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "format:check": "prettier --check src/**/*.ts",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky install",
-    "prepublishOnly": "bun run build"
+    "prepare": "husky",
+    "prepublishOnly": "bun run typecheck && bun run lint && bun test && bun run build"
   },
   "repository": {
     "type": "git",

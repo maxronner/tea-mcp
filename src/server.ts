@@ -7,7 +7,7 @@ import { execCommand } from "./process.js";
 type TeaResponse =
   | string
   | { success: true; message?: string; stderr?: string }
-  | object
+  | Record<string, unknown>
   | unknown[];
 
 interface RegisteredToolRecord {
