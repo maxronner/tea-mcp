@@ -4,6 +4,10 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { execCommand } from "./process.js";
 
+function getRepoCwd(): string {
+  return process.env.TEA_REPO_PATH || process.cwd();
+}
+
 type TeaResponse =
   | string
   | { success: true; message?: string; stderr?: string }
@@ -45,7 +49,7 @@ function formatError(error: unknown): string {
 }
 
 export async function execTea(args: string[]): Promise<TeaResponse> {
-  const { stdout, stderr } = await execCommand("tea", args);
+  const { stdout, stderr } = await execCommand("tea", args, { cwd: getRepoCwd() });
   const output = stdout.trim();
 
   if (!output) {
@@ -60,7 +64,7 @@ export async function execTea(args: string[]): Promise<TeaResponse> {
 }
 
 export async function execGit(args: string[]): Promise<string> {
-  const { stdout } = await execCommand("git", args);
+  const { stdout } = await execCommand("git", args, { cwd: getRepoCwd() });
   return stdout.trim();
 }
 
