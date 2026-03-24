@@ -48,6 +48,18 @@ function formatError(error: unknown): string {
   return `Error: ${message}`;
 }
 
+const repoSchema = z
+  .string()
+  .optional()
+  .describe(
+    "Repository path or 'owner/name' slug (defaults to repo detected from working directory)"
+  );
+
+function appendRepoFlag(args: string[], repo?: string): string[] {
+  if (repo) args.push("--repo", repo);
+  return args;
+}
+
 export async function execTea(args: string[]): Promise<TeaResponse> {
   const { stdout, stderr } = await execCommand("tea", args, { cwd: getRepoCwd() });
   const output = stdout.trim();
@@ -113,8 +125,9 @@ server.tool(
     limit: z.number().min(1).max(100).optional().default(30),
     labels: z.string().optional(),
     author: z.string().optional(),
+    repo: repoSchema,
   },
-  async ({ state, limit, labels, author }) => {
+  async ({ state, limit, labels, author, repo }) => {
     try {
       const args = [
         "issues",
@@ -128,6 +141,7 @@ server.tool(
       ];
       if (labels) args.push("--labels", labels);
       if (author) args.push("--author", author);
+      appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
@@ -147,10 +161,13 @@ server.tool(
   "View details of a specific issue",
   {
     index: z.number().positive().describe("Issue number"),
+    repo: repoSchema,
   },
-  async ({ index }) => {
+  async ({ index, repo }) => {
     try {
-      const result = await execTea(["issues", String(index), "--output", "json", "--comments"]);
+      const args = ["issues", String(index), "--output", "json", "--comments"];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -168,10 +185,13 @@ server.tool(
   "Close an issue",
   {
     index: z.number().positive().describe("Issue number to close"),
+    repo: repoSchema,
   },
-  async ({ index }) => {
+  async ({ index, repo }) => {
     try {
-      const result = await execTea(["issues", "close", String(index)]);
+      const args = ["issues", "close", String(index)];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -189,10 +209,13 @@ server.tool(
   "Reopen a closed issue",
   {
     index: z.number().positive().describe("Issue number to reopen"),
+    repo: repoSchema,
   },
-  async ({ index }) => {
+  async ({ index, repo }) => {
     try {
-      const result = await execTea(["issues", "reopen", String(index)]);
+      const args = ["issues", "reopen", String(index)];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -211,10 +234,11 @@ server.tool(
   {
     state: z.enum(["open", "closed", "all"]).optional().default("open"),
     limit: z.number().min(1).max(100).optional().default(30),
+    repo: repoSchema,
   },
-  async ({ state, limit }) => {
+  async ({ state, limit, repo }) => {
     try {
-      const result = await execTea([
+      const args = [
         "pulls",
         "list",
         "--output",
@@ -223,7 +247,9 @@ server.tool(
         state,
         "--limit",
         String(limit),
-      ]);
+      ];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -241,10 +267,13 @@ server.tool(
   "View details of a specific pull request",
   {
     index: z.number().positive().describe("Pull request number"),
+    repo: repoSchema,
   },
-  async ({ index }) => {
+  async ({ index, repo }) => {
     try {
-      const result = await execTea(["pulls", String(index), "--output", "json", "--comments"]);
+      const args = ["pulls", String(index), "--output", "json", "--comments"];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -262,10 +291,13 @@ server.tool(
   "Checkout a pull request locally",
   {
     index: z.number().positive().describe("Pull request number to checkout"),
+    repo: repoSchema,
   },
-  async ({ index }) => {
+  async ({ index, repo }) => {
     try {
-      const result = await execTea(["pulls", "checkout", String(index)]);
+      const args = ["pulls", "checkout", String(index)];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -300,8 +332,9 @@ server.tool(
     assignees: z.string().optional().describe("Comma-separated list of usernames to assign"),
     labels: z.string().optional().describe("Comma-separated list of labels to assign"),
     milestone: z.string().optional().describe("Milestone to assign"),
+    repo: repoSchema,
   },
-  async ({ title, description, head, base, preview, assignees, labels, milestone }) => {
+  async ({ title, description, head, base, preview, assignees, labels, milestone, repo }) => {
     try {
       const sourceBranch = head || (await execGit(["branch", "--show-current"]));
       const targetBranch = base || (await resolveDefaultBranch());
@@ -386,6 +419,7 @@ server.tool(
       if (assignees) args.push("--assignees", assignees);
       if (labels) args.push("--labels", labels);
       if (milestone) args.push("--milestone", milestone);
+      appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
@@ -406,11 +440,13 @@ server.tool(
   {
     index: z.number().positive().describe("Pull request number to approve"),
     comment: z.string().optional().describe("Optional approval comment"),
+    repo: repoSchema,
   },
-  async ({ index, comment }) => {
+  async ({ index, comment, repo }) => {
     try {
       const args = ["pulls", "approve", String(index), "--output", "json"];
       if (comment) args.push(comment);
+      appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
@@ -431,10 +467,13 @@ server.tool(
   {
     index: z.number().positive().describe("Pull request number to reject"),
     reason: z.string().describe("Reason for requesting changes"),
+    repo: repoSchema,
   },
-  async ({ index, reason }) => {
+  async ({ index, reason, repo }) => {
     try {
-      const result = await execTea(["pulls", "reject", String(index), reason, "--output", "json"]);
+      const args = ["pulls", "reject", String(index), reason, "--output", "json"];
+      appendRepoFlag(args, repo);
+      const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
       };
@@ -459,12 +498,14 @@ server.tool(
       .describe("Merge strategy to use"),
     title: z.string().optional().describe("Custom merge commit title"),
     message: z.string().optional().describe("Custom merge commit message"),
+    repo: repoSchema,
   },
-  async ({ index, style, title, message }) => {
+  async ({ index, style, title, message, repo }) => {
     try {
       const args = ["pulls", "merge", String(index), "--output", "json", "--style", style];
       if (title) args.push("--title", title);
       if (message) args.push("--message", message);
+      appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
