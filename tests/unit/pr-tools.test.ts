@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { getExecCalls, queueExecSuccess, resetExecMocks } from "../setup";
+import {
+  getExecCalls,
+  queueExecSuccess,
+  queueRepoDetection,
+  repoDetectionCall,
+  resetExecMocks,
+  RESOLVED_REPO_SLUG,
+} from "../setup";
 import { getRegisteredTool, getRegisteredToolNames } from "../../src/server";
 
 describe("pull request tools", () => {
@@ -24,6 +31,7 @@ describe("pull request tools", () => {
   it("creates a pull request without collapsing spaced arguments", async () => {
     queueExecSuccess("feature branch\n");
     queueExecSuccess("origin/master\n");
+    queueRepoDetection();
     queueExecSuccess(JSON.stringify({ number: 123, title: "My PR" }));
 
     const result = await getRegisteredTool("tea_pr_create").handler({
@@ -36,6 +44,7 @@ describe("pull request tools", () => {
     expect(getExecCalls()).toEqual([
       { file: "git", args: ["branch", "--show-current"] },
       { file: "git", args: ["symbolic-ref", "--short", "refs/remotes/origin/HEAD"] },
+      repoDetectionCall(),
       {
         file: "tea",
         args: [
@@ -49,6 +58,8 @@ describe("pull request tools", () => {
           "A body with spaces && symbols",
           "--base",
           "master",
+          "--repo",
+          RESOLVED_REPO_SLUG,
         ],
       },
     ]);
@@ -77,7 +88,9 @@ describe("pull request tools", () => {
   });
 
   it("passes approval and rejection messages as single arguments", async () => {
+    queueRepoDetection();
     queueExecSuccess(JSON.stringify({ ok: true }));
+    queueRepoDetection();
     queueExecSuccess(JSON.stringify({ ok: true }));
 
     await getRegisteredTool("tea_pr_approve").handler({
@@ -90,18 +103,39 @@ describe("pull request tools", () => {
     });
 
     expect(getExecCalls()).toEqual([
+      repoDetectionCall(),
       {
         file: "tea",
-        args: ["pulls", "approve", "42", "--output", "json", "LGTM with one note"],
+        args: [
+          "pulls",
+          "approve",
+          "42",
+          "--output",
+          "json",
+          "LGTM with one note",
+          "--repo",
+          RESOLVED_REPO_SLUG,
+        ],
       },
+      repoDetectionCall(),
       {
         file: "tea",
-        args: ["pulls", "reject", "42", "Please fix title casing && docs", "--output", "json"],
+        args: [
+          "pulls",
+          "reject",
+          "42",
+          "Please fix title casing && docs",
+          "--output",
+          "json",
+          "--repo",
+          RESOLVED_REPO_SLUG,
+        ],
       },
     ]);
   });
 
   it("merges with the requested strategy and message", async () => {
+    queueRepoDetection();
     queueExecSuccess(JSON.stringify({ state: "merged" }));
 
     await getRegisteredTool("tea_pr_merge").handler({
@@ -112,6 +146,7 @@ describe("pull request tools", () => {
     });
 
     expect(getExecCalls()).toEqual([
+      repoDetectionCall(),
       {
         file: "tea",
         args: [
@@ -126,6 +161,8 @@ describe("pull request tools", () => {
           "Merge title",
           "--message",
           "Merge body",
+          "--repo",
+          RESOLVED_REPO_SLUG,
         ],
       },
     ]);

@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it } from "bun:test";
-import { getExecCalls, queueExecSuccess, resetExecMocks } from "../setup";
+import {
+  getExecCalls,
+  queueExecSuccess,
+  queueRepoDetection,
+  repoDetectionCall,
+  resetExecMocks,
+  RESOLVED_REPO_SLUG,
+} from "../setup";
 import { getRegisteredTool, getRegisteredToolNames } from "../../src/server";
 
 describe("issue tools", () => {
@@ -19,6 +26,7 @@ describe("issue tools", () => {
   });
 
   it("lists issues with the documented defaults", async () => {
+    queueRepoDetection();
     queueExecSuccess(JSON.stringify([{ number: 1, title: "Issue 1" }]));
 
     const result = await getRegisteredTool("tea_issues_list").handler({
@@ -28,28 +36,44 @@ describe("issue tools", () => {
 
     expect(result.content[0]?.text).toContain('"title": "Issue 1"');
     expect(getExecCalls()).toEqual([
+      repoDetectionCall(),
       {
         file: "tea",
-        args: ["issues", "list", "--output", "json", "--state", "open", "--limit", "30"],
+        args: [
+          "issues",
+          "list",
+          "--output",
+          "json",
+          "--state",
+          "open",
+          "--limit",
+          "30",
+          "--repo",
+          RESOLVED_REPO_SLUG,
+        ],
       },
     ]);
   });
 
   it("views issue details with comments", async () => {
+    queueRepoDetection();
     queueExecSuccess(JSON.stringify({ number: 42, comments: [] }));
 
     await getRegisteredTool("tea_issue_view").handler({ index: 42 });
 
     expect(getExecCalls()).toEqual([
+      repoDetectionCall(),
       {
         file: "tea",
-        args: ["issues", "42", "--output", "json", "--comments"],
+        args: ["issues", "42", "--output", "json", "--comments", "--repo", RESOLVED_REPO_SLUG],
       },
     ]);
   });
 
   it("closes and reopens issues", async () => {
+    queueRepoDetection();
     queueExecSuccess("");
+    queueRepoDetection();
     queueExecSuccess("");
 
     const closeResult = await getRegisteredTool("tea_issue_close").handler({ index: 7 });
@@ -58,8 +82,10 @@ describe("issue tools", () => {
     expect(closeResult.content[0]?.text).toBe("Operation completed successfully");
     expect(reopenResult.content[0]?.text).toBe("Operation completed successfully");
     expect(getExecCalls()).toEqual([
-      { file: "tea", args: ["issues", "close", "7"] },
-      { file: "tea", args: ["issues", "reopen", "7"] },
+      repoDetectionCall(),
+      { file: "tea", args: ["issues", "close", "7", "--repo", RESOLVED_REPO_SLUG] },
+      repoDetectionCall(),
+      { file: "tea", args: ["issues", "reopen", "7", "--repo", RESOLVED_REPO_SLUG] },
     ]);
   });
 });

@@ -59,3 +59,15 @@ export function resetExecMocks(): void {
 export function getExecCalls(): ExecCall[] {
   return execCalls;
 }
+
+const FAKE_REMOTE = "ssh://git@git.example.com/owner/repo.git";
+
+export function queueRepoDetection(): void {
+  queueExecSuccess(FAKE_REMOTE);
+}
+
+export function repoDetectionCall(): ExecCall {
+  return { file: "git", args: ["remote", "get-url", "origin"] };
+}
+
+export const RESOLVED_REPO_SLUG = "owner/repo";

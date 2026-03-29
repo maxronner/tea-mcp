@@ -55,8 +55,33 @@ const repoSchema = z
     "Repository path or 'owner/name' slug (defaults to repo detected from working directory)"
   );
 
-function appendRepoFlag(args: string[], repo?: string): string[] {
-  if (repo) args.push("--repo", repo);
+function parseRepoSlug(url: string): string | undefined {
+  // ssh://git@host/owner/repo.git or git@host:owner/repo.git
+  const sshMatch = url.match(/[/:]([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+  if (sshMatch) return `${sshMatch[1]}/${sshMatch[2]}`;
+  // https://host/owner/repo.git
+  const httpsMatch = url.match(/https?:\/\/[^/]+\/([\w.-]+)\/([\w.-]+?)(?:\.git)?$/);
+  if (httpsMatch) return `${httpsMatch[1]}/${httpsMatch[2]}`;
+  return undefined;
+}
+
+async function resolveRepoSlug(): Promise<string | undefined> {
+  try {
+    // git remote get-url applies insteadOf rewrites, unlike raw config
+    const url = await execGit(["remote", "get-url", "origin"]);
+    return parseRepoSlug(url);
+  } catch {
+    return undefined;
+  }
+}
+
+async function appendRepoFlag(args: string[], repo?: string): Promise<string[]> {
+  if (repo) {
+    args.push("--repo", repo);
+  } else {
+    const slug = await resolveRepoSlug();
+    if (slug) args.push("--repo", slug);
+  }
   return args;
 }
 
@@ -141,7 +166,7 @@ server.tool(
       ];
       if (labels) args.push("--labels", labels);
       if (author) args.push("--author", author);
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
@@ -166,7 +191,7 @@ server.tool(
   async ({ index, repo }) => {
     try {
       const args = ["issues", String(index), "--output", "json", "--comments"];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -190,7 +215,7 @@ server.tool(
   async ({ index, repo }) => {
     try {
       const args = ["issues", "close", String(index)];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -214,7 +239,7 @@ server.tool(
   async ({ index, repo }) => {
     try {
       const args = ["issues", "reopen", String(index)];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -248,7 +273,7 @@ server.tool(
         "--limit",
         String(limit),
       ];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -272,7 +297,7 @@ server.tool(
   async ({ index, repo }) => {
     try {
       const args = ["pulls", String(index), "--output", "json", "--comments"];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -296,7 +321,7 @@ server.tool(
   async ({ index, repo }) => {
     try {
       const args = ["pulls", "checkout", String(index)];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -419,7 +444,7 @@ server.tool(
       if (assignees) args.push("--assignees", assignees);
       if (labels) args.push("--labels", labels);
       if (milestone) args.push("--milestone", milestone);
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
@@ -446,7 +471,7 @@ server.tool(
     try {
       const args = ["pulls", "approve", String(index), "--output", "json"];
       if (comment) args.push(comment);
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
@@ -472,7 +497,7 @@ server.tool(
   async ({ index, reason, repo }) => {
     try {
       const args = ["pulls", "reject", String(index), reason, "--output", "json"];
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
         content: [{ type: "text" as const, text: formatResponse(result) }],
@@ -505,7 +530,7 @@ server.tool(
       const args = ["pulls", "merge", String(index), "--output", "json", "--style", style];
       if (title) args.push("--title", title);
       if (message) args.push("--message", message);
-      appendRepoFlag(args, repo);
+      await appendRepoFlag(args, repo);
 
       const result = await execTea(args);
       return {
