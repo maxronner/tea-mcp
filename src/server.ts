@@ -185,12 +185,12 @@ server.tool(
   "tea_issue_view",
   "View details of a specific issue",
   {
-    index: z.number().positive().describe("Issue number"),
+    number: z.number().positive().describe("Issue number"),
     repo: repoSchema,
   },
-  async ({ index, repo }) => {
+  async ({ number, repo }) => {
     try {
-      const args = ["issues", String(index), "--output", "json", "--comments"];
+      const args = ["issues", String(number), "--output", "json", "--comments"];
       await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
@@ -209,12 +209,12 @@ server.tool(
   "tea_issue_close",
   "Close an issue",
   {
-    index: z.number().positive().describe("Issue number to close"),
+    number: z.number().positive().describe("Issue number to close"),
     repo: repoSchema,
   },
-  async ({ index, repo }) => {
+  async ({ number, repo }) => {
     try {
-      const args = ["issues", "close", String(index)];
+      const args = ["issues", "close", String(number)];
       await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
@@ -233,12 +233,12 @@ server.tool(
   "tea_issue_reopen",
   "Reopen a closed issue",
   {
-    index: z.number().positive().describe("Issue number to reopen"),
+    number: z.number().positive().describe("Issue number to reopen"),
     repo: repoSchema,
   },
-  async ({ index, repo }) => {
+  async ({ number, repo }) => {
     try {
-      const args = ["issues", "reopen", String(index)];
+      const args = ["issues", "reopen", String(number)];
       await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
@@ -291,12 +291,12 @@ server.tool(
   "tea_pr_view",
   "View details of a specific pull request",
   {
-    index: z.number().positive().describe("Pull request number"),
+    number: z.number().positive().describe("Pull request number"),
     repo: repoSchema,
   },
-  async ({ index, repo }) => {
+  async ({ number, repo }) => {
     try {
-      const args = ["pulls", String(index), "--output", "json", "--comments"];
+      const args = ["pulls", String(number), "--output", "json", "--comments"];
       await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
@@ -315,12 +315,12 @@ server.tool(
   "tea_pr_checkout",
   "Checkout a pull request locally",
   {
-    index: z.number().positive().describe("Pull request number to checkout"),
+    number: z.number().positive().describe("Pull request number to checkout"),
     repo: repoSchema,
   },
-  async ({ index, repo }) => {
+  async ({ number, repo }) => {
     try {
-      const args = ["pulls", "checkout", String(index)];
+      const args = ["pulls", "checkout", String(number)];
       await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
@@ -463,13 +463,13 @@ server.tool(
   "tea_pr_approve",
   "Approve a pull request",
   {
-    index: z.number().positive().describe("Pull request number to approve"),
+    number: z.number().positive().describe("Pull request number to approve"),
     comment: z.string().optional().describe("Optional approval comment"),
     repo: repoSchema,
   },
-  async ({ index, comment, repo }) => {
+  async ({ number, comment, repo }) => {
     try {
-      const args = ["pulls", "approve", String(index), "--output", "json"];
+      const args = ["pulls", "approve", String(number), "--output", "json"];
       if (comment) args.push(comment);
       await appendRepoFlag(args, repo);
 
@@ -490,13 +490,13 @@ server.tool(
   "tea_pr_reject",
   "Request changes on a pull request",
   {
-    index: z.number().positive().describe("Pull request number to reject"),
+    number: z.number().positive().describe("Pull request number to reject"),
     reason: z.string().describe("Reason for requesting changes"),
     repo: repoSchema,
   },
-  async ({ index, reason, repo }) => {
+  async ({ number, reason, repo }) => {
     try {
-      const args = ["pulls", "reject", String(index), reason, "--output", "json"];
+      const args = ["pulls", "reject", String(number), reason, "--output", "json"];
       await appendRepoFlag(args, repo);
       const result = await execTea(args);
       return {
@@ -515,7 +515,7 @@ server.tool(
   "tea_pr_merge",
   "Merge a pull request",
   {
-    index: z.number().positive().describe("Pull request number to merge"),
+    number: z.number().positive().describe("Pull request number to merge"),
     style: z
       .enum(["merge", "rebase", "squash", "rebase-merge"])
       .optional()
@@ -525,9 +525,9 @@ server.tool(
     message: z.string().optional().describe("Custom merge commit message"),
     repo: repoSchema,
   },
-  async ({ index, style, title, message, repo }) => {
+  async ({ number, style, title, message, repo }) => {
     try {
-      const args = ["pulls", "merge", String(index), "--output", "json", "--style", style];
+      const args = ["pulls", "merge", String(number), "--output", "json", "--style", style];
       if (title) args.push("--title", title);
       if (message) args.push("--message", message);
       await appendRepoFlag(args, repo);

@@ -59,7 +59,7 @@ describe("issue tools", () => {
     queueRepoDetection();
     queueExecSuccess(JSON.stringify({ number: 42, comments: [] }));
 
-    await getRegisteredTool("tea_issue_view").handler({ index: 42 });
+    await getRegisteredTool("tea_issue_view").handler({ number: 42 });
 
     expect(getExecCalls()).toEqual([
       repoDetectionCall(),
@@ -76,8 +76,8 @@ describe("issue tools", () => {
     queueRepoDetection();
     queueExecSuccess("");
 
-    const closeResult = await getRegisteredTool("tea_issue_close").handler({ index: 7 });
-    const reopenResult = await getRegisteredTool("tea_issue_reopen").handler({ index: 7 });
+    const closeResult = await getRegisteredTool("tea_issue_close").handler({ number: 7 });
+    const reopenResult = await getRegisteredTool("tea_issue_reopen").handler({ number: 7 });
 
     expect(closeResult.content[0]?.text).toBe("Operation completed successfully");
     expect(reopenResult.content[0]?.text).toBe("Operation completed successfully");

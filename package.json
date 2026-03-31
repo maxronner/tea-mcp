@@ -1,6 +1,6 @@
 {
   "name": "@maxronner/tea-mcp",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "description": "MCP server for tea CLI (Gitea)",
   "bin": {
