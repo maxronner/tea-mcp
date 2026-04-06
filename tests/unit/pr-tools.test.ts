@@ -94,11 +94,11 @@ describe("pull request tools", () => {
     queueExecSuccess(JSON.stringify({ ok: true }));
 
     await getRegisteredTool("tea_pr_approve").handler({
-      number: 42,
+      index: 42,
       comment: "LGTM with one note",
     });
     await getRegisteredTool("tea_pr_reject").handler({
-      number: 42,
+      index: 42,
       reason: "Please fix title casing && docs",
     });
 
@@ -139,7 +139,7 @@ describe("pull request tools", () => {
     queueExecSuccess(JSON.stringify({ state: "merged" }));
 
     await getRegisteredTool("tea_pr_merge").handler({
-      number: 42,
+      index: 42,
       style: "squash",
       title: "Merge title",
       message: "Merge body",
