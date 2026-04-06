@@ -185,7 +185,10 @@ server.tool(
   "tea_issue_view",
   "View details of a specific issue",
   {
-    index: z.number().positive().describe("Issue number"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Issue number"),
     repo: repoSchema,
   },
   async ({ index, repo }) => {
@@ -209,7 +212,10 @@ server.tool(
   "tea_issue_close",
   "Close an issue",
   {
-    index: z.number().positive().describe("Issue number to close"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Issue number to close"),
     repo: repoSchema,
   },
   async ({ index, repo }) => {
@@ -233,7 +239,10 @@ server.tool(
   "tea_issue_reopen",
   "Reopen a closed issue",
   {
-    index: z.number().positive().describe("Issue number to reopen"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Issue number to reopen"),
     repo: repoSchema,
   },
   async ({ index, repo }) => {
@@ -291,7 +300,10 @@ server.tool(
   "tea_pr_view",
   "View details of a specific pull request",
   {
-    index: z.number().positive().describe("Pull request number"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Pull request number"),
     repo: repoSchema,
   },
   async ({ index, repo }) => {
@@ -315,7 +327,10 @@ server.tool(
   "tea_pr_checkout",
   "Checkout a pull request locally",
   {
-    index: z.number().positive().describe("Pull request number to checkout"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Pull request number to checkout"),
     repo: repoSchema,
   },
   async ({ index, repo }) => {
@@ -463,7 +478,10 @@ server.tool(
   "tea_pr_approve",
   "Approve a pull request",
   {
-    index: z.number().positive().describe("Pull request number to approve"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Pull request number to approve"),
     comment: z.string().optional().describe("Optional approval comment"),
     repo: repoSchema,
   },
@@ -490,7 +508,10 @@ server.tool(
   "tea_pr_reject",
   "Request changes on a pull request",
   {
-    index: z.number().positive().describe("Pull request number to reject"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Pull request number to reject"),
     reason: z.string().describe("Reason for requesting changes"),
     repo: repoSchema,
   },
@@ -515,7 +536,10 @@ server.tool(
   "tea_pr_merge",
   "Merge a pull request",
   {
-    index: z.number().positive().describe("Pull request number to merge"),
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Pull request number to merge"),
     style: z
       .enum(["merge", "rebase", "squash", "rebase-merge"])
       .optional()
