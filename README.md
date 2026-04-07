@@ -8,7 +8,7 @@ MCP (Model Context Protocol) server for [tea CLI](https://gitea.io) - interact w
 
 ## Features
 
-- List, view, close, and reopen issues
+- List, view, create, close, and reopen issues
 - List, view, and checkout pull requests
 - **Create pull requests with preview mode** - review changes before creating
 - **Approve and reject pull requests** - complete PR review workflow

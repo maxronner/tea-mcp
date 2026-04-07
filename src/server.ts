@@ -263,6 +263,51 @@ server.tool(
 );
 
 server.tool(
+  "tea_issue_create",
+  "Create a new issue in the current repository",
+  {
+    title: z.string().describe("Issue title"),
+    description: z.string().optional().describe("Issue description / body"),
+    assignees: z.string().optional().describe("Comma-separated list of usernames to assign"),
+    labels: z.string().optional().describe("Comma-separated list of labels to assign"),
+    milestone: z.string().optional().describe("Milestone to assign"),
+    deadline: z.string().optional().describe("Deadline timestamp to assign"),
+    referencedVersion: z.string().optional().describe("Commit hash or tag name to reference"),
+    repo: repoSchema,
+  },
+  async ({
+    title,
+    description,
+    assignees,
+    labels,
+    milestone,
+    deadline,
+    referencedVersion,
+    repo,
+  }) => {
+    try {
+      const args = ["issues", "create", "--title", title];
+      if (description) args.push("--description", description);
+      if (assignees) args.push("--assignees", assignees);
+      if (labels) args.push("--labels", labels);
+      if (milestone) args.push("--milestone", milestone);
+      if (deadline) args.push("--deadline", deadline);
+      if (referencedVersion) args.push("--referenced-version", referencedVersion);
+      await appendRepoFlag(args, repo);
+      const result = await execTea(args);
+      return {
+        content: [{ type: "text" as const, text: formatResponse(result) }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text" as const, text: formatError(error) }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
   "tea_prs_list",
   "List pull requests in the current repository",
   {
