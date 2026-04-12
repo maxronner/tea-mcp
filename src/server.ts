@@ -308,6 +308,35 @@ server.tool(
 );
 
 server.tool(
+  "tea_create_comment",
+  "Add a comment to an issue or pull request",
+  {
+    index: z
+      .union([z.number(), z.string().transform(Number)])
+      .pipe(z.number().positive())
+      .describe("Issue or pull request number to comment on"),
+    body: z.string().describe("Comment body text"),
+    repo: repoSchema,
+  },
+  async ({ index, body, repo }) => {
+    try {
+      const args = ["comment", String(index), body];
+      await appendRepoFlag(args, repo);
+
+      const result = await execTea(args);
+      return {
+        content: [{ type: "text" as const, text: formatResponse(result) }],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text" as const, text: formatError(error) }],
+        isError: true,
+      };
+    }
+  }
+);
+
+server.tool(
   "tea_prs_list",
   "List pull requests in the current repository",
   {
