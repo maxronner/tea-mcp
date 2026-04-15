@@ -1,5 +1,5 @@
 import { mock } from "bun:test";
-import type { ExecFileException } from "child_process";
+import { EventEmitter } from "events";
 
 interface ExecCall {
   file: string;
@@ -14,33 +14,42 @@ const execCalls: ExecCall[] = [];
 const execResults: ExecMockResult[] = [];
 
 mock.module("child_process", () => ({
-  execFile: mock(
-    (
-      file: string,
-      args: string[],
-      options: unknown,
-      callback: (error: ExecFileException | null, stdout: string, stderr: string) => void
-    ) => {
-      void options;
-      execCalls.push({ file, args });
+  spawn: mock((file: string, args: string[], _options: unknown) => {
+    execCalls.push({ file, args });
 
-      const next = execResults.shift();
+    const child = new EventEmitter();
+    const stdoutStream = new EventEmitter();
+    const stderrStream = new EventEmitter();
+    (child as any).stdout = stdoutStream;
+    (child as any).stderr = stderrStream;
+
+    const next = execResults.shift();
+
+    queueMicrotask(() => {
       if (!next) {
-        callback(null, "", "");
-        return undefined as never;
+        child.emit("close", 0);
+        return;
       }
 
       if (next.type === "error") {
-        const error = new Error(next.stderr) as ExecFileException & { code?: number };
-        error.code = next.exitCode;
-        callback(error, "", next.stderr);
-        return undefined as never;
+        if (next.stderr) {
+          stderrStream.emit("data", Buffer.from(next.stderr));
+        }
+        child.emit("close", next.exitCode);
+        return;
       }
 
-      callback(null, next.stdout, next.stderr);
-      return undefined as never;
-    }
-  ),
+      if (next.stdout) {
+        stdoutStream.emit("data", Buffer.from(next.stdout));
+      }
+      if (next.stderr) {
+        stderrStream.emit("data", Buffer.from(next.stderr));
+      }
+      child.emit("close", 0);
+    });
+
+    return child;
+  }),
 }));
 
 export function queueExecSuccess(stdout: string, stderr = ""): void {

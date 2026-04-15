@@ -1,4 +1,4 @@
-import { execFile } from "child_process";
+import { spawn } from "child_process";
 
 export interface CommandResult {
   stdout: string;
@@ -17,19 +17,43 @@ export function execCommand(
   options?: CommandOptions
 ): Promise<CommandResult> {
   return new Promise((resolve, reject) => {
-    execFile(
-      file,
-      args,
-      { maxBuffer: MAX_BUFFER_BYTES, cwd: options?.cwd },
-      (error, stdout, stderr) => {
-        if (error) {
-          const details = [stderr, stdout, error.message].filter(Boolean).join("\n");
-          reject(new Error(details));
-          return;
-        }
+    const child = spawn(file, args, {
+      cwd: options?.cwd,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
 
-        resolve({ stdout, stderr });
+    let stdout = "";
+    let stderr = "";
+    let stdoutLen = 0;
+    let stderrLen = 0;
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      stdoutLen += chunk.length;
+      if (stdoutLen <= MAX_BUFFER_BYTES) {
+        stdout += chunk.toString();
       }
-    );
+    });
+
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderrLen += chunk.length;
+      if (stderrLen <= MAX_BUFFER_BYTES) {
+        stderr += chunk.toString();
+      }
+    });
+
+    child.on("error", (error) => {
+      reject(new Error(error.message));
+    });
+
+    child.on("close", (code) => {
+      if (code !== 0) {
+        const details = [stderr, stdout, `Process exited with code ${code}`]
+          .filter(Boolean)
+          .join("\n");
+        reject(new Error(details));
+        return;
+      }
+      resolve({ stdout, stderr });
+    });
   });
 }
